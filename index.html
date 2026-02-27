@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Aspecte Catalunya</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { margin: 0; padding: 0; }
+        #map { width: 100vw; height: 100vh; background: #f0f0f0; }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+    // Inicialitzem el mapa centrat a Catalunya
+    var map = L.map('map').setView([41.7, 1.8], 8);
+
+    // Mapa base (OpenStreetMap)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    // Les teves tesel·les de l'Aspecte
+    // NOTA: Canvia "EL_TEU_USUARI" pel teu nom de GitHub
+    var aspectTiles = L.tileLayer('https://EL_TEU_USUARI.github.io/test-aspect-tiles/tiles_aspect/{z}/{x}/{y}.png', {
+        minZoom: 7,
+        maxZoom: 13,
+        opacity: 0.7,
+        attribution: 'Aspecte Catalunya 20m',
+        errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=' // Transparent si no hi ha tile
+    }).addTo(map);
+
+    // Control de capes
+    var baseMaps = { "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png') };
+    var overlayMaps = { "Aspecte": aspectTiles };
+    L.control.layers(baseMaps, overlayMaps).addTo(map);
+
+</script>
+</body>
+</html>
