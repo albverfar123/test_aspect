@@ -9,54 +9,83 @@
     <style>
         body { margin: 0; padding: 0; }
         #map { width: 100vw; height: 100vh; background: #f0f0f0; }
+        
+        /* Estils per a la llegenda */
+        .legend {
+            padding: 10px;
+            background: white;
+            line-height: 18px;
+            color: #333;
+            border-radius: 5px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+        }
+        .legend i {
+            width: 18px;
+            height: 18px;
+            float: left;
+            margin-right: 8px;
+            opacity: 0.9;
+            border: 1px solid #ccc;
+        }
     </style>
 </head>
 <body>
     
 <div id="controls" style="position: absolute; bottom: 20px; left: 20px; z-index: 1000; background: white; padding: 10px; border-radius: 5px; box-shadow: 0 0 15px rgba(0,0,0,0.2);">
-    <label>Opacitat: </label>
+    <label style="font-family: sans-serif; font-size: 14px;">Opacitat: </label>
     <input id="range_opacity" type="range" min="0" max="1" step="0.1" value="0.7">
 </div>
 
-    
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-    // Inicialitzem el mapa centrat a Catalunya
-    var map = L.map('map').setView([41.7, 1.8], 8);
+    // Inicialitzem el mapa amb maxZoom 22 per permetre l'estirament
+    var map = L.map('map', {
+        maxZoom: 22
+    }).setView([41.7, 1.8], 8);
 
-    // Mapa base (OpenStreetMap)
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    // Mapa base
+    var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap'
     }).addTo(map);
 
-
-
-    }).addTo(map);
-
-    
-    // Les teves tesel·les de l'Aspecte
-    // NOTA: Canvia "EL_TEU_USUARI" pel teu nom de GitHub
-var aspectTiles = L.tileLayer('https://albverfar123.github.io/test_aspect/tiles_aspect/{z}/{x}/{y}.png', {
+    // Les teves tesel·les corregides
+    var aspectTiles = L.tileLayer('https://albverfar123.github.io/test_aspect/tiles_aspect/{z}/{x}/{y}.png', {
         minZoom: 8,
         maxNativeZoom: 12, 
         maxZoom: 22,       
-        opacity: 0.7,      // <--- AQUÍ faltava la coma!
+        opacity: 0.7,      
         attribution: 'Aspecte Catalunya 20m',
         errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
     }).addTo(map);
     
+    // Control d'opacitat
     document.getElementById('range_opacity').addEventListener('input', function (e) {
-        var opacity = e.target.value;
-        aspectTiles.setOpacity(opacity);
+        aspectTiles.setOpacity(e.target.value);
     });
     
     // Control de capes
-    var baseMaps = { "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png') };
+    var baseMaps = { "OpenStreetMap": osm };
     var overlayMaps = { "Aspecte": aspectTiles };
-    L.control.layers(baseMaps, overlayMaps).addTo(map);
+    L.control.layers(baseMaps, overlayMaps, {collapsed: false}).addTo(map);
+
+    // LLEGENDA
+    var legend = L.control({position: 'bottomright'});
+    legend.onAdd = function (map) {
+        var div = L.DomUtil.create('div', 'legend');
+        var grades = [1, 2, 3, 4, 5, 6, 7, 8];
+        var labels = ['Nord', 'Nord-est', 'Est', 'Sud-est', 'Sud', 'Sud-oest', 'Oest', 'Nord-oest'];
+        var colors = ['#ff00ac', '#ff97dd', '#5cc75a', '#9cc75a', '#c7c55a', '#c7a15a', '#c7735a', '#990067'];
+
+        div.innerHTML = '<strong>Orientació</strong><br>';
+        for (var i = 0; i < grades.length; i++) {
+            div.innerHTML += '<i style="background:' + colors[i] + '"></i> ' + labels[i] + '<br>';
+        }
+        return div;
+    };
+    legend.addTo(map);
 
 </script>
 </body>
