@@ -177,7 +177,7 @@ def generate_daily_png(data, lon, lat, date_str):
 def save_stations_geojson(dades, path):
     geojson = {"type": "FeatureCollection", "features": []}
     for d in dades:
-        if d['pluja'] >= 0.1:
+        if d['pluja'] >= 0:
             feature = {
                 "type": "Feature",
                 "geometry": {"type": "Point", "coordinates": [d['lon'], d['lat']]},
