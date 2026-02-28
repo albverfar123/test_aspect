@@ -1,0 +1,39 @@
+name: Actualització Radar Meteocat
+
+on:
+  workflow_dispatch: # Execució manual
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repositori
+        uses: actions/checkout@v3
+
+      - name: Configurar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Instal·lar dependències
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Executar script de descàrrega
+        run: python radar_to_nc.py
+
+      # En lloc de fer Push, pugem el fitxer .nc a Artifacts
+      - name: Executar script de descàrrega
+        run: python radar_to_nc.py
+      - name: Commit i Push del fitxer radar
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Afegim el nou fitxer .nc generat a la carpeta dades_radar
+          git add dades_radar/*.nc
+          
+          # Fem el commit. El "|| exit 0" evita que el workflow falli si no hi ha canvis
+          git commit -m "🛰️ Radar: Afegit nou fitxer .nc" || exit 0
+          git push

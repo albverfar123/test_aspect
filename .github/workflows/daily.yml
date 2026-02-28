@@ -1,0 +1,57 @@
+name: Acumulat Diari Radar
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # Descarrega tot l'historial per evitar problemes de push
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # 2. EXECUTAR L'ACUMULAT I LA NETEJA
+      - name: Run daily accumulation
+        run: |
+            mkdir -p dades_radar  # <--- Afegeix això per assegurar la carpeta
+            python daily_accumulation.py
+
+      # 3. COMMIT I PUSH DELS RESULTATS
+      - name: Commit and Push
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Afegim només els fitxers que ens interessen
+          git add acumulats_diaris/*.nc
+          git add acumulats_diaris/*.png
+          git add acumulats_diaris/*.txt
+          git add bounds.json
+          
+          # Fem el commit només si hi ha canvis reals
+          if git diff --staged --quiet; then
+            echo "No hi ha canvis per pujar."
+          else
+            git commit -m "📊 Prova acumulat d'avui: $(date +'%Y-%m-%d')"
+            git push
+          fi
+          git add -A
+          
+          git commit -m "Acumulat diari generat i neteja radar" || exit 0
+          git push
