@@ -5,13 +5,65 @@ import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 import matplotlib.colors as colors
 import json
+import requests # <--- Nou
+import csv      # <--- Nou
+# ... resta d'imports que ja tens ...
+
+# --- CONFIGURACIÓ API METEOCAT ---
+API_KEY = "5Rq09hMMoQ8JKQ87M9RxL5wM0dIW4HsU27G0WEjo" 
+BASE_URL = "https://api.meteo.cat/xema/v1"
+CODI_PLUJA = "1300"
+
 
 OUTPUT_DIR = "dades_radar"
 DAILY_DIR = "acumulats_diaris"
 
+def get_stations_daily_data(date_obj):
+    """Obté la pluja i coordenades de les estacions per a un dia concret"""
+    headers = {"X-Api-Key": API_KEY}
+    date_api_str = date_obj.strftime("%Y-%m-%dZ")
+    
+    print(f"📡 Descarregant dades i coordenades d'estacions per al {date_obj.strftime('%Y-%m-%d')}...")
+    
+    # 1. Obtenir metadades (incloent coordenades)
+    res_est = requests.get(f"{BASE_URL}/estacions/metadades", headers=headers)
+    estacions_info = {}
+    if res_est.status_code == 200:
+        for e in res_est.json():
+            estacions_info[e['codi']] = {
+                'nom': e['nom'],
+                'lat': e['coordenades']['latitud'],
+                'lon': e['coordenades']['longitud']
+            }
+
+    # 2. Obtenir dades de pluja
+    url = f"{BASE_URL}/variables/estadistics/diaris/{CODI_PLUJA}?any={date_obj.year}&mes={date_obj.month:02d}"
+    res = requests.get(url, headers=headers)
+    
+    dades_completes = []
+    if res.status_code == 200:
+        for estacio in res.json():
+            codi = estacio.get('codiEstacio')
+            if codi in estacions_info:
+                info = estacions_info[codi]
+                for val in estacio.get('valors', []):
+                    if val['data'] == date_api_str:
+                        dades_completes.append({
+                            'codi': codi,
+                            'nom': info['nom'],
+                            'lat': info['lat'],
+                            'lon': info['lon'],
+                            'data': date_api_str.replace('Z',''),
+                            'pluja': float(val['valor'])
+                        })
+    
+    return dades_completes
+
+
 def calculate_daily():
     # 1. Determinar el dia d'ahir
-    ieri = (datetime.utcnow() - timedelta(days=1)).strftime("%Y%m%d")
+    ieri_obj = datetime.utcnow() - timedelta(days=1)
+    ieri = ieri_obj.strftime("%Y%m%d")
     print(f"📅 Generant acumulat per al dia: {ieri}")
 
     if not os.path.exists(DAILY_DIR):
@@ -93,6 +145,32 @@ def calculate_daily():
         f_txt.write("\n".join(used_files))
     print(f"📄 Llista de fonts guardada a: {txt_out_path}")
 
+    
+
+# --- NOU: PUNT 5.5 DESCARREGA I GUARDA ESTACIONS (CSV i GeoJSON) ---
+    try:
+        estacions_data = get_stations_daily_data(ieri_obj)
+        if estacions_data:
+            # 1. Guardar CSV
+            csv_path = os.path.join(DAILY_DIR, f"estacions_{ieri}.csv")
+            with open(csv_path, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                writer.writerow(['Codi', 'Nom', 'Data', 'Precipitacio_mm'])
+                for d in estacions_data:
+                    writer.writerow([d['codi'], d['nom'], d['data'], d['pluja']])
+            print(f"📊 CSV d'estacions guardat: {csv_path}")
+
+            # 2. Guardar GeoJSON
+            geojson_path = os.path.join(DAILY_DIR, f"estacions_{ieri}.json")
+            save_stations_geojson(estacions_data, geojson_path)
+            print(f"📍 GeoJSON d'estacions guardat: {geojson_path}")
+            
+        else:
+            print("⚠️ No s'han trobat dades d'estacions per a aquest dia.")
+    except Exception as e:
+        print(f"❌ Error processant dades d'estacions: {e}")
+
+    
     # 6. GENERAR PNG
     generate_daily_png(total_precip, lon, lat, ieri)
 
@@ -144,6 +222,34 @@ def generate_daily_png(data, lon, lat, date_str):
         json.dump(bounds_data, f)
     print(f"📍 Coordenades guardades a bounds.json")
 
+def save_stations_geojson(dades, path):
+    """Genera un fitxer GeoJSON a partir de les dades de les estacions"""
+    geojson = {
+        "type": "FeatureCollection",
+        "features": []
+    }
+    
+    for d in dades:
+        # Filtre opcional: només estacions que hagin marcat pluja (>0)
+        # Si vols totes, treu el "if d['pluja'] > 0:"
+        if d['pluja'] >= 0.1:
+            feature = {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [d['lon'], d['lat']]
+                },
+                "properties": {
+                    "codi": d['codi'],
+                    "nom": d['nom'],
+                    "pluja": d['pluja'],
+                    "data": d['data']
+                }
+            }
+            geojson["features"].append(feature)
+    
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(geojson, f, ensure_ascii=False)
 
 if __name__ == "__main__":
     calculate_daily()
