@@ -57,7 +57,7 @@ def get_stations_daily_data(date_obj):
 
 def calculate_daily():
     # 1. Determinar el dia d'ahir
-    ieri_obj = datetime.utcnow() - timedelta(days=0)
+    ieri_obj = datetime.utcnow() - timedelta(days=1)
     ieri = ieri_obj.strftime("%Y%m%d")
     print(f"📅 Iniciant procés per al dia: {ieri}")
 
