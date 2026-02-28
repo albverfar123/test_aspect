@@ -285,37 +285,53 @@ async function updateView() {
     const dates = getDates(document.getElementById("datePicker").value);
     const status = document.getElementById("statusMsg");
     const weekDisplay = document.getElementById("weekRangeDisplay");
+    
     if (overlayRadar) map.removeLayer(overlayRadar);
     stationsLayer.clearLayers();
 
     if (viewMode === 'daily') {
         weekDisplay.style.display = "none";
         loadRadar(`acumulats_diaris/acumulat_${dates.daily}.png`);
+        // CARREGA ESTACIONS DIÀRIES
+        loadStations(`acumulats_diaris/estacions_${dates.daily}.json`);
     } else {
         weekDisplay.style.display = "block";
         loadRadar(`acumulats_setmanals/setmanal_${dates.weeklyStart}_${dates.weeklyEnd}.png`, async (success) => {
             if (!success) {
                 weekDisplay.textContent = `Setmana del ${dates.uiStart} al ${dates.uiEnd}`;
                 loadRadar(`acumulats_setmanals/setmanal_${dates.trialStart}_${dates.trialEnd}.png`);
-                loadStations(dates.trialStart, dates.trialEnd);
+                // CARREGA ESTACIONS SETMANALS (Trial/Mòbil)
+                loadStations(`acumulats_setmanals/estacions_${dates.trialStart}_${dates.trialEnd}.json`);
             } else {
                 weekDisplay.textContent = `Setmana del ${dates.uiStartNat} al ${dates.uiEndNat}`;
-                loadStations(dates.weeklyStart, dates.weeklyEnd);
+                // CARREGA ESTACIONS SETMANALS (Naturals)
+                loadStations(`acumulats_setmanals/estacions_${dates.weeklyStart}_${dates.weeklyEnd}.json`);
             }
         });
     }
 }
 
-async function loadRadar(path, callback) {
-    const img = new Image();
-    img.onload = () => {
-        overlayRadar = L.imageOverlay(path, radarBounds, { opacity: document.getElementById("opacitySlider").value }).addTo(map);
-        if(aspectLayer) overlayRadar.bringToFront();
-        document.getElementById("statusMsg").textContent = "✔ Carregat";
-        if(callback) callback(true);
-    };
-    img.onerror = () => { document.getElementById("statusMsg").textContent = "✖ No trobat"; if(callback) callback(false); };
-    img.src = path;
+async function loadStations(path) {
+    // Si el checkbox està desactivat, no fem res
+    if (!document.getElementById("checkStations").checked) return;
+    
+    try {
+        const res = await fetch(path);
+        if (!res.ok) return; // Si el fitxer no existeix, sortim silenciosament
+        const data = await res.json();
+        
+        L.geoJSON(data, {
+            pointToLayer: (feature, latlng) => L.marker(latlng, {
+                icon: L.divIcon({ 
+                    className: 'station-label', 
+                    html: feature.properties.pluja, 
+                    iconSize: [25, 15] 
+                })
+            }).bindTooltip(`${feature.properties.nom}: ${feature.properties.pluja} mm`)
+        }).addTo(stationsLayer);
+    } catch (e) {
+        console.log("Dades d'estacions no disponibles per a aquesta ruta");
+    }
 }
 
 async function loadStations(start, end) {
