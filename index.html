@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Precipitació Catalunya, radar</title>
+    <title>Precipitació Catalunya - Radar i Estacions</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         html, body { height: 100%; margin: 0; overflow: hidden; font-family: -apple-system, system-ui, sans-serif; }
@@ -12,13 +12,15 @@
             background: #1a1a1a; color: white; display: flex; align-items: center;
             justify-content: space-between; padding: 0 16px; z-index: 2000; box-shadow: 0 2px 10px rgba(0,0,0,0.5);
         }
+        .header-tabs { display: flex; gap: 5px; }
         .header-tabs button {
-            background: transparent; border: none; color: #aaa; padding: 6px 12px;
-            cursor: pointer; font-weight: bold; font-size: 12px; border-radius: 6px;
+            background: transparent; border: none; color: #aaa; padding: 6px 10px;
+            cursor: pointer; font-weight: bold; font-size: 11px; border-radius: 6px;
+            text-transform: uppercase;
         }
         .header-tabs button.active { background: #007bff; color: white; }
         
-        #btnAspect { border: 1px solid #444; margin-left: 10px; }
+        #btnAspect { border: 1px solid #444; margin-left: 5px; }
         #btnAspect.active { border-color: #ff00ac; color: #ff00ac; }
 
         #map { position: absolute; top: 60px; bottom: 0; width: 100%; background: #f0f0f0; }
@@ -96,8 +98,9 @@
 <div class="header">
     <div id="titleHeader" style="font-weight:bold">PlujaCat</div>
     <div class="header-tabs">
-        <button id="modeDaily" class="active">DIARI</button>
-        <button id="modeWeekly">SETMANAL</button>
+        <button id="modeRadar">Radar</button>
+        <button id="modeDaily" class="active">Diari</button>
+        <button id="modeWeekly">Setmanal</button>
         <button id="btnAspect">Orientació</button> 
     </div>
 </div>
@@ -108,21 +111,21 @@
 <div id="map"></div>
 
 <div class="control" id="mainControl">
-    <div id="weekRangeDisplay" style="font-size:11px; color:#007bff; font-weight:bold; text-align:center; display:none; margin-bottom:5px;">--</div>
+    <div id="displayInfo" style="font-size:11px; color:#007bff; font-weight:bold; text-align:center; margin-bottom:5px;">--</div>
     <input id="datePicker" type="date" style="width:100%; padding:8px; margin-bottom:5px;">
     
     <div style="display:flex; gap:5px; margin-bottom:10px;">
-        <button id="prevBtn" style="flex:1">◀</button>
-        <button id="nextBtn" style="flex:1">▶</button>
+        <button id="prevBtn" style="flex:1; padding: 10px;">◀</button>
+        <button id="nextBtn" style="flex:1; padding: 10px;">▶</button>
     </div>
 
     <div id="statusMsg" style="font-size:12px; text-align:center; margin-bottom:5px;">Iniciant...</div>
 
-    <label style="font-size:12px; display:flex; align-items:center; gap:5px;">
+    <label id="labelStations" style="font-size:12px; display:flex; align-items:center; gap:5px;">
         <input type="checkbox" id="checkStations" checked> Veure dades estacions (mm)
     </label>
     
-    <div style="font-size: 10px; color: #666;">Opacitat Radar:</div>
+    <div style="font-size: 10px; color: #666;">Opacitat Capa:</div>
     <input id="opacitySlider" type="range" min="0" max="1" step="0.1" value="0.8" style="width:100%;">
 </div>
 
@@ -142,8 +145,12 @@ var overlayRadar = null;
 var aspectLayer = null; 
 var legendControl = null; 
 var stationsLayer = L.layerGroup().addTo(map);
-var viewMode = 'daily';
+var viewMode = 'daily'; // 'radar', 'daily', 'weekly'
 var radarBounds = null;
+var radarTime = new Date(); 
+// Arredonir radarTime als 6 minuts anteriors
+radarTime.setMinutes(Math.floor(radarTime.getMinutes() / 6) * 6);
+radarTime.setSeconds(7); // Segon estàndard del radar de Meteocat
 
 // --- LLEGENDA ---
 var legend = L.control({ position: "bottomright" });
@@ -153,9 +160,13 @@ legend.onAdd = function() {
     return this._div;
 };
 legend.update = function() {
-    let title = viewMode === 'daily' ? "Acumulat Diari (mm)" : "Acumulat Setmanal (mm)";
+    let title = "Llegenda";
+    if (viewMode === 'daily') title = "Acumulat Diari (mm)";
+    else if (viewMode === 'weekly') title = "Acumulat Setmanal (mm)";
+    else if (viewMode === 'radar') title = "Intensitat Radar";
+
     let marks = "", ticks = "";
-    if (viewMode === 'daily') {
+    if (viewMode === 'daily' || viewMode === 'radar') {
         const pts = [0.1, 1, 5, 20, 100, 200];
         pts.forEach(v => {
             let pos = ((Math.log10(v) + 1) / 3.301) * 100;
@@ -206,25 +217,45 @@ async function initMap() {
 async function updateView() {
     if (!radarBounds) return;
     legend.update();
-    const dates = getDates(document.getElementById("datePicker").value);
-    const weekDisplay = document.getElementById("weekRangeDisplay");
+    const datePicker = document.getElementById("datePicker");
+    const dates = getDates(datePicker.value);
+    const infoDisplay = document.getElementById("displayInfo");
+    const labelStations = document.getElementById("labelStations");
     
     if (overlayRadar) map.removeLayer(overlayRadar);
     stationsLayer.clearLayers();
 
-    if (viewMode === 'daily') {
-        weekDisplay.style.display = "none";
+    if (viewMode === 'radar') {
+        datePicker.style.display = "none";
+        labelStations.style.display = "none";
+        infoDisplay.style.display = "block";
+        
+        let ymd = radarTime.toISOString().slice(0,10).replace(/-/g, "");
+        let hms = radarTime.toTimeString().slice(0,8).replace(/:/g, "");
+        let path = `dades_radar_png/radar_${ymd}_${hms}.png`;
+        
+        infoDisplay.textContent = `RADAR: ${radarTime.toLocaleDateString()} ${radarTime.toLocaleTimeString().slice(0,5)}`;
+        loadRadar(path);
+
+    } else if (viewMode === 'daily') {
+        datePicker.style.display = "block";
+        labelStations.style.display = "flex";
+        infoDisplay.style.display = "none";
         loadRadar(`acumulats_diaris/acumulat_${dates.daily}.png`);
         loadStations(`acumulats_diaris/estacions_${dates.daily}.json`);
-    } else {
-        weekDisplay.style.display = "block";
+
+    } else if (viewMode === 'weekly') {
+        datePicker.style.display = "block";
+        labelStations.style.display = "flex";
+        infoDisplay.style.display = "block";
+        
         loadRadar(`acumulats_setmanals/setmanal_${dates.weeklyStart}_${dates.weeklyEnd}.png`, async (success) => {
             if (!success) {
-                weekDisplay.textContent = `Setmana del ${dates.uiStart} al ${dates.uiEnd}`;
+                infoDisplay.textContent = `Setmana del ${dates.uiStart} al ${dates.uiEnd}`;
                 loadRadar(`acumulats_setmanals/setmanal_${dates.trialStart}_${dates.trialEnd}.png`);
                 loadStations(`acumulats_setmanals/estacions_${dates.trialStart}_${dates.trialEnd}.json`);
             } else {
-                weekDisplay.textContent = `Setmana del ${dates.uiStartNat} al ${dates.uiEndNat}`;
+                infoDisplay.textContent = `Setmana del ${dates.uiStartNat} al ${dates.uiEndNat}`;
                 loadStations(`acumulats_setmanals/estacions_${dates.weeklyStart}_${dates.weeklyEnd}.json`);
             }
         });
@@ -234,13 +265,15 @@ async function updateView() {
 async function loadRadar(path, callback) {
     const img = new Image();
     img.onload = () => {
-        overlayRadar = L.imageOverlay(path, radarBounds, { opacity: document.getElementById("opacitySlider").value }).addTo(map);
+        overlayRadar = L.imageOverlay(path, radarBounds, { 
+            opacity: document.getElementById("opacitySlider").value 
+        }).addTo(map);
         if(aspectLayer) overlayRadar.bringToFront();
         document.getElementById("statusMsg").textContent = "✔ Carregat";
         if(callback) callback(true);
     };
     img.onerror = () => { 
-        document.getElementById("statusMsg").textContent = "✖ No trobat"; 
+        document.getElementById("statusMsg").textContent = "✖ Arxiu no trobat"; 
         if(callback) callback(false); 
     };
     img.src = path;
@@ -271,14 +304,43 @@ document.getElementById("btnToggleMenu").onclick = function() {
     this.textContent = menu.classList.contains("minimized") ? "Obrir" : "Amagar";
 };
 
-document.getElementById("modeDaily").onclick = function() { viewMode='daily'; this.classList.add('active'); document.getElementById("modeWeekly").classList.remove('active'); updateView(); };
-document.getElementById("modeWeekly").onclick = function() { viewMode='weekly'; this.classList.add('active'); document.getElementById("modeDaily").classList.remove('active'); updateView(); };
+// Navegació de modes
+function setMode(mode, btn) {
+    viewMode = mode;
+    document.querySelectorAll('.header-tabs button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    updateView();
+}
+
+document.getElementById("modeRadar").onclick = function() { setMode('radar', this); };
+document.getElementById("modeDaily").onclick = function() { setMode('daily', this); };
+document.getElementById("modeWeekly").onclick = function() { setMode('weekly', this); };
+
 document.getElementById("datePicker").onchange = updateView;
 document.getElementById("checkStations").onchange = updateView;
 document.getElementById("opacitySlider").oninput = function() { if (overlayRadar) overlayRadar.setOpacity(this.value); };
 
-document.getElementById("prevBtn").onclick = () => { let d = new Date(datePicker.value); d.setDate(d.getDate()-1); datePicker.value=d.toISOString().slice(0,10); updateView(); };
-document.getElementById("nextBtn").onclick = () => { let d = new Date(datePicker.value); d.setDate(d.getDate()+1); datePicker.value=d.toISOString().slice(0,10); updateView(); };
+document.getElementById("prevBtn").onclick = () => {
+    if (viewMode === 'radar') {
+        radarTime.setMinutes(radarTime.getMinutes() - 6);
+    } else {
+        let d = new Date(datePicker.value);
+        d.setDate(d.getDate() - 1);
+        datePicker.value = d.toISOString().slice(0, 10);
+    }
+    updateView();
+};
+
+document.getElementById("nextBtn").onclick = () => {
+    if (viewMode === 'radar') {
+        radarTime.setMinutes(radarTime.getMinutes() + 6);
+    } else {
+        let d = new Date(datePicker.value);
+        d.setDate(d.getDate() + 1);
+        datePicker.value = d.toISOString().slice(0, 10);
+    }
+    updateView();
+};
 
 // --- GPS ---
 var userMarker = null;
@@ -289,7 +351,7 @@ map.on('locationfound', (e) => {
     L.circle(e.latlng, e.accuracy, { color: '#007bff', fillOpacity: 0.1, weight: 1 }).addTo(map);
 });
 
-// --- ORIENTACIÓ ---
+// --- ORIENTACIÓ (ASPECTE) ---
 function toggleAspect() {
     const btn = document.getElementById("btnAspect");
     const control = document.getElementById("aspectControl");
