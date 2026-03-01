@@ -37,12 +37,21 @@ LLEGENDA_RADAR = {
 }
 
 def crear_cmap_discret():
-    """Crea un colormap personalitzat basat en la teva llegenda"""
+    """Crea un colormap personalitzat basat en la teva llegenda corregint els bins"""
     vals = sorted(LLEGENDA_RADAR.keys())
     colors = [LLEGENDA_RADAR[v] for v in vals]
+    
+    # Creem el mapa de colors amb els colors de la llegenda
     cmap = mcolors.ListedColormap(colors)
-    cmap.set_under(alpha=0) # Transparent per a valors < 0.2
-    norm = mcolors.BoundaryNorm([0] + vals + [1000], cmap.N)
+    cmap.set_under(alpha=0) # Per a valors per sota del primer tall (0.2)
+    cmap.set_over(alpha=1)  # Per a valors per sobre de 150 (opcional)
+
+    # Definim els límits: han d'haver-hi exactament len(colors) + 1 límits
+    # Si tenim 20 colors, necessitem 21 límits.
+    # Usem els valors de la llegenda com a talls.
+    boundaries = vals + [1000] # Això dóna exactament 21 límits per a 20 colors
+    
+    norm = mcolors.BoundaryNorm(boundaries, cmap.N)
     return cmap, norm
 
 def processar_nc_a_png():
