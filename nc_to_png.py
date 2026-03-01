@@ -22,19 +22,6 @@ LLEGENDA_RADAR = {
     (255, 0, 255): 100.0, (255, 255, 255): 150.0
 }
 
-def get_color(valor):
-    """Retorna el color RGB més proper segons el valor de pluja."""
-    if valor <= 0 or np.isnan(valor):
-        return (0, 0, 0, 0) # Transparent o Negre si no hi ha pluja
-    
-    # Busquem el llindar més proper sense passar-nos (o el primer superior)
-    last_color = (0, 0, 0)
-    for rgb, llindar in sorted(LLEGENDA_RADAR.items(), key=lambda x: x[1]):
-        if valor <= llindar:
-            return rgb
-        last_color = rgb
-    return last_color
-
 def processar_nc_a_png():
     arxius = glob.glob(os.path.join(INPUT_FOLDER, "*.nc"))
     
@@ -48,32 +35,40 @@ def processar_nc_a_png():
         
         try:
             with Dataset(path, 'r') as nc:
-                # Suposem que la variable es diu 'precip' o 'p' 
-                # (Ajusta el nom segons el teu fitxer .nc)
+                # Busquem la variable de dades (que no sigui lat, lon o time)
                 var_name = [v for v in nc.variables if v not in ['lat', 'lon', 'time']][0]
                 dades = nc.variables[var_name][:]
                 
-                # Si dades té 3 dimensions (temps, lat, lon), agafem la primera de temps
                 if len(dades.shape) == 3:
                     dades = dades[0]
 
-                # Creem la imatge buida (RGBA per transparència si cal)
+                # Convertim a array de numpy normal si és un masked_array
+                dades = np.ma.filled(dades, fill_value=0)
+
+                # Creem una matriu RGBA (4 canals: Vermell, Verd, Blau, Alfa)
+                # Inicialment tot a zero (transparent)
                 alt, ample = dades.shape
-                img_data = np.zeros((alt, ample, 3), dtype=np.uint8)
+                img_data = np.zeros((alt, ample, 4), dtype=np.uint8)
 
-                # Omplim els píxels
-                # Nota: Això és un loop simple. Per arxius molt grans es podria optimitzar amb vectorització
-                for y in range(alt):
-                    for x in range(ample):
-                        img_data[y, x] = get_color(dades[y, x])
+                # --- VECTORITZACIÓ ---
+                # En lloc de fer bucles per píxel, iterem només sobre els colors de la llegenda
+                for rgb, valor_exacte in LLEGENDA_RADAR.items():
+                    # Creem una màscara de tots els píxels que coincideixen amb el valor
+                    # Fem servir un marge petit (tol) per si hi ha errors de precisió float
+                    mask = np.isclose(dades, valor_exacte, atol=0.01)
+                    
+                    # Pintem els píxels que compleixen la condició
+                    img_data[mask] = [rgb[0], rgb[1], rgb[2], 255] # 255 és opac
 
-                # Guardem (Invertim l'eix Y si el mapa surt del revés, habitual en NC)
-                img = Image.fromarray(img_data)
+                # Invertim l'eix vertical si és necessari per a la correcta georeferenciació
+                img = Image.fromarray(img_data, 'RGBA')
                 img = img.transpose(Image.FLIP_TOP_BOTTOM) 
+                
                 img.save(os.path.join(OUTPUT_FOLDER, nom_arxiu))
+                print(f"  Finalitzat: {nom_arxiu}")
                 
         except Exception as e:
-            print(f"Error processant {path}: {e}")
+            print(f"  Error processant {path}: {e}")
 
 if __name__ == "__main__":
     processar_nc_a_png()
