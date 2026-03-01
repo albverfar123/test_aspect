@@ -8,17 +8,16 @@ INPUT_FOLDER = 'dades_radar'
 
 # Diccionari de transformació {valor_actual: valor_nou}
 TRANSFORM_MAP = {
-    0.2: 0.1,
-    0.8: 0.5,
-    1.2: 1.0,
+    0.5: 0.4,
+    1.0: 0.8,
+    1.5: 1.0,
     2.0: 1.5,
     3.0: 2.0,
-    4.5: 3.0,
-    6.5: 4.0,
-    9.0: 6.0,
+    4.0: 3.0,
+    6.0: 4.0,
+    8.0: 6.0,
     12.0: 8.0,
-    15.0: 12.0,
-    15.1: 16.0
+   16.0: 10.0
 }
 
 def transform_nc_files():
