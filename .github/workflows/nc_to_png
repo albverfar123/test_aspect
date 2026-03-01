@@ -1,0 +1,35 @@
+name: Processar Radar a PNG
+
+on:
+  push:
+    paths:
+      - 'dades_radar/**'  # S'activa quan puges nous fitxers .nc
+  workflow_dispatch:      # Permet activar-lo manualment amb un botó
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout del codi
+      uses: actions/checkout@v3
+
+    - name: Configurar Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Instal·lar llibreries
+      run: |
+        pip install -r requirements.txt
+
+    - name: Executar processament
+      run: python processar_radar.py
+
+    - name: Pujar canvis al repositori
+      run: |
+        git config --global user.name 'GitHub Action'
+        git config --global user.email 'action@github.com'
+        git add dades_radar_png/*.png
+        git commit -m "Actualització de mapes radar [skip ci]" || echo "Sense canvis per cometre"
+        git push
