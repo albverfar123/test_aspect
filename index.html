@@ -3,93 +3,73 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Precipitació Catalunya - Radar i Estacions</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <style>
-        html, body { height: 100%; margin: 0; overflow: hidden; font-family: -apple-system, system-ui, sans-serif; }
-        .header {
-            position: absolute; top: 0; left: 0; right: 0; height: 60px;
-            background: #1a1a1a; color: white; display: flex; align-items: center;
-            justify-content: space-between; padding: 0 16px; z-index: 2000; box-shadow: 0 2px 10px rgba(0,0,0,0.5);
-        }
-        .header-tabs { display: flex; gap: 5px; }
-        .header-tabs button {
-            background: transparent; border: none; color: #aaa; padding: 6px 10px;
-            cursor: pointer; font-weight: bold; font-size: 11px; border-radius: 6px;<!DOCTYPE html>
-<html lang="ca">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>PlujaCat - Radar i Acumulats</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        html, body { height: 100%; margin: 0; overflow: hidden; font-family: -apple-system, system-ui, sans-serif; }
+        /* Estils Base */
+        html, body { height: 100%; margin: 0; overflow: hidden; font-family: -apple-system, system-ui, sans-serif; background: #f0f0f0; }
+        
+        /* Capçalera */
         .header {
             position: absolute; top: 0; left: 0; right: 0; height: 60px;
             background: #1a1a1a; color: white; display: flex; align-items: center;
             justify-content: space-between; padding: 0 16px; z-index: 2000; box-shadow: 0 2px 10px rgba(0,0,0,0.5);
         }
-        .header-tabs { display: flex; gap: 5px; }
+        .header-tabs { display: flex; gap: 4px; }
         .header-tabs button {
-            background: transparent; border: none; color: #aaa; padding: 6px 10px;
+            background: transparent; border: none; color: #aaa; padding: 6px 8px;
             cursor: pointer; font-weight: bold; font-size: 11px; border-radius: 6px;
             text-transform: uppercase;
         }
         .header-tabs button.active { background: #007bff; color: white; }
-        
         #btnAspect { border: 1px solid #444; margin-left: 5px; }
         #btnAspect.active { border-color: #ff00ac; color: #ff00ac; }
 
-        #map { position: absolute; top: 60px; bottom: 0; width: 100%; background: #f0f0f0; }
+        /* Mapa */
+        #map { position: absolute; top: 60px; bottom: 0; width: 100%; z-index: 1; }
+
+        /* Controls Genèrics */
         .control {
             position: absolute; background: white; z-index: 1500; padding: 15px;
-            display: flex; flex-direction: column; gap: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            transition: all 0.3s ease;
-        }
-        
-        .control.minimized { transform: translateX(calc(100% + 20px)); }
-
-        #aspectControl {
-            display: none; bottom: 20px; left: 160px; width: 140px; border-radius: 8px;
+            display: flex; flex-direction: column; gap: 8px; box-shadow: 0 2px 15px rgba(0,0,0,0.3);
+            transition: all 0.3s ease; box-sizing: border-box;
         }
 
+        /* Responsive: Escriptori */
+        @media (min-width: 601px) {
+            .control:not(#aspectControl) { top: 80px; right: 20px; width: 280px; border-radius: 12px; }
+            .control.minimized { transform: translateX(350px); }
+        }
+
+        /* Responsive: Mòbil */
+        @media (max-width: 600px) {
+            .control:not(#aspectControl) { bottom: 0; left: 0; width: 100%; border-radius: 20px 20px 0 0; }
+            .control.minimized { transform: translateY(100%); }
+        }
+
+        /* Control d'Orientació (específic) */
+        #aspectControl { display: none; bottom: 80px; left: 20px; width: 140px; border-radius: 8px; z-index: 1501; }
+
+        /* Botons i Elements UI */
+        #btnToggleMenu {
+            position: absolute; top: 75px; right: 20px; z-index: 1600;
+            background: white; border: none; padding: 10px 15px; border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2); cursor: pointer; font-weight: bold;
+        }
+        #btnGPS {
+            position: absolute; top: 75px; left: 20px; z-index: 1600;
+            background: white; border: 1px solid #ccc; width: 40px; height: 40px; 
+            border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); cursor: pointer; font-size: 20px;
+        }
         .station-label {
-            background: rgba(255, 255, 255, 0.8); border: 1px solid rgba(0,0,0,0.3);
+            background: rgba(255, 255, 255, 0.9); border: 1px solid #666;
             border-radius: 3px; text-align: center; font-size: 10px; font-weight: bold;
-            color: #000; box-shadow: 0 1px 3px rgba(0,0,0,0.2); pointer-events: none !important;
         }
-
-        .legend-box {
-            background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            width: 220px; min-height: 45px;
-        }
-        .colorbar {
-            height: 12px; width: 100%; position: relative; margin-top: 5px; border: 1px solid #999;
-            background: linear-gradient(to right,#30123b, #4662d8, #36aaf9, #1ae4b6, #a2fc3c, #faba39, #e4460a, #7a0403);
-        }
+        .legend-box { background: white; padding: 10px; border-radius: 8px; width: 200px; font-size: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+        .colorbar { height: 12px; width: 100%; border: 1px solid #999; margin-top: 15px; position: relative; background: linear-gradient(to right,#30123b, #4662d8, #36aaf9, #1ae4b6, #a2fc3c, #faba39, #e4460a, #7a0403); }
         .colorbar span { position: absolute; height: 5px; border-left: 1px solid #333; top: -14px; }
         .ticks { position: relative; width: 100%; height: 12px; margin-top: 2px; }
-        .ticks span { position: absolute; font-size: 9px; transform: translateX(-50%); }
-
-        #btnToggleMenu {
-            position: absolute; top: 65px; right: 20px; z-index: 1600;
-            background: white; border: none; padding: 8px 12px; border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2); cursor: pointer; font-weight: bold; font-size: 12px;
-        }
-
-        @media (max-width: 600px) { 
-            .control:not(#aspectControl) { bottom: 0; width: 100%; border-radius: 20px 20px 0 0; } 
-            .control.minimized { transform: translateY(100%); }
-            #btnToggleMenu { top: 65px; right: 10px; }
-        }
-        
-        #btnGPS {
-            position: absolute; top: 70px; left: 10px; z-index: 1600;
-            background: white; border: 1px solid #ccc; width: 34px; height: 34px; 
-            border-radius: 4px; box-shadow: 0 1px 5px rgba(0,0,0,0.4); cursor: pointer;
-        }
-        
-        .user-location-dot { background-color: #007bff; border: 2px solid white; border-radius: 50%; }
+        .ticks span { position: absolute; transform: translateX(-50%); }
     </style>
 </head>
 <body>
@@ -104,33 +84,33 @@
     </div>
 </div>
 
-<button id="btnToggleMenu">Menú</button>
-<button id="btnGPS" title="ubicació">📍</button>
+<button id="btnToggleMenu">Obrir/Tancar</button>
+<button id="btnGPS">📍</button>
     
 <div id="map"></div>
 
 <div class="control" id="mainControl">
-    <div id="displayInfo" style="font-size:11px; color:#007bff; font-weight:bold; text-align:center; margin-bottom:5px;">--</div>
+    <div id="displayInfo" style="font-size:12px; color:#007bff; font-weight:bold; text-align:center; margin-bottom:5px;">--</div>
     
-    <input id="datePicker" type="date" style="width:100%; padding:8px; margin-bottom:5px;">
+    <input id="datePicker" type="date" style="width:100%; padding:10px; border: 1px solid #ccc; border-radius: 6px; margin-bottom:5px;">
     
-    <div style="display:flex; gap:5px; margin-bottom:10px;">
-        <button id="prevBtn" style="flex:1; padding: 10px;">◀</button>
-        <button id="nextBtn" style="flex:1; padding: 10px;">▶</button>
+    <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <button id="prevBtn" style="flex:1; padding: 12px; background:#eee; border:1px solid #ccc; border-radius:6px; cursor:pointer;">◀ Anterior</button>
+        <button id="nextBtn" style="flex:1; padding: 12px; background:#eee; border:1px solid #ccc; border-radius:6px; cursor:pointer;">Següent ▶</button>
     </div>
 
-    <div id="statusMsg" style="font-size:12px; text-align:center; margin-bottom:5px;">Iniciant...</div>
+    <div id="statusMsg" style="font-size:12px; text-align:center; color: #666;">Iniciant...</div>
 
-    <label id="labelStations" style="font-size:12px; display:flex; align-items:center; gap:5px;">
-        <input type="checkbox" id="checkStations" checked> Veure dades estacions (mm)
+    <label id="labelStations" style="font-size:13px; display:flex; align-items:center; gap:8px; padding: 5px 0;">
+        <input type="checkbox" id="checkStations" checked> Veure estacions (mm)
     </label>
     
-    <div style="font-size: 10px; color: #666;">Opacitat Capa:</div>
-    <input id="opacitySlider" type="range" min="0" max="1" step="0.1" value="0.8" style="width:100%;">
+    <div style="font-size: 11px; color: #666; margin-top: 5px;">Opacitat Capa:</div>
+    <input id="opacitySlider" type="range" min="0" max="1" step="0.1" value="0.8" style="width:100%; cursor:pointer;">
 </div>
 
 <div id="aspectControl" class="control">
-    <div style="font-size: 10px; font-weight: bold; margin-bottom: 2px;">Aspecte (Opacitat)</div>
+    <div style="font-size: 11px; font-weight: bold;">Orientació (Opacitat)</div>
     <input id="aspectOpacity" type="range" min="0" max="1" step="0.1" value="0.7" style="width:100%;">
 </div>
 
@@ -142,11 +122,9 @@ L.tileLayer('https://{s}.tile.osm.org/{z}/{x}/{y}.png').addTo(map);
 var overlayRadar = null;
 var aspectLayer = null; 
 var stationsLayer = L.layerGroup().addTo(map);
-var legendControl = null;
 var viewMode = 'daily'; 
 var radarBounds = null;
 
-// Gestió del temps del radar
 var radarTime = new Date(); 
 radarTime.setMinutes(Math.floor(radarTime.getMinutes() / 6) * 6);
 radarTime.setSeconds(7); 
@@ -169,38 +147,18 @@ legend.update = function() {
         marks += `<span style="left:${pos}%"></span>`;
         ticks += `<span style="left:${pos}%">${v}</span>`;
     });
-    this._div.innerHTML = `<div style="font-weight:bold; font-size:10px; margin-bottom:5px;">${title}</div>
-                           <div class="colorbar">${marks}</div>
-                           <div class="ticks">${ticks}</div>`;
+    this._div.innerHTML = `<strong>${title}</strong><div class="colorbar">${marks}</div><div class="ticks">${ticks}</div>`;
 };
 legend.addTo(map);
 
-// --- AUXILIARS ---
-function getDates(dateIn) {
-    let d = new Date(dateIn);
-    const fmt = (date) => date.toISOString().slice(0,10).replace(/-/g, "");
-    const fmtUI = (date) => `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-    let day = d.getDay(), diff = d.getDate() - day + (day == 0 ? -6 : 1);
-    let monday = new Date(d.getTime()); monday.setDate(diff);
-    let sunday = new Date(monday.getTime()); sunday.setDate(monday.getDate() + 6);
-    return {
-        daily: fmt(new Date(dateIn)),
-        weeklyStart: fmt(monday), weeklyEnd: fmt(sunday),
-        trialStart: fmt(new Date(d.getTime() - 6*86400000)), trialEnd: fmt(new Date(dateIn)),
-        uiStart: fmtUI(new Date(d.getTime() - 6*86400000)), uiEnd: fmtUI(new Date(dateIn)),
-        uiStartNat: fmtUI(monday), uiEndNat: fmtUI(sunday)
-    };
-}
-
-// --- CORE FUNCTIONS ---
+// --- CORE ---
 async function initMap() {
     try {
         const response = await fetch('bounds.json');
         const b = await response.json();
-        // Fem servir EXACTAMENT aquests bounds per a tot
         radarBounds = [[b.lat_min, b.lon_min], [b.lat_max, b.lon_max]];
     } catch (e) { 
-        radarBounds = [[40.057, 0.151], [42.849, 3.487]]; // Fallback segons estàndard .nc
+        radarBounds = [[40.057, 0.151], [42.849, 3.487]]; 
     }
     updateView(); 
 }
@@ -208,54 +166,45 @@ async function initMap() {
 async function updateView() {
     if (!radarBounds) return;
     legend.update();
-    const datePicker = document.getElementById("datePicker");
-    const dates = getDates(datePicker.value);
+    const dates = getDates(document.getElementById("datePicker").value);
     const infoDisplay = document.getElementById("displayInfo");
-    const labelStations = document.getElementById("labelStations");
     
     if (overlayRadar) map.removeLayer(overlayRadar);
     stationsLayer.clearLayers();
 
     if (viewMode === 'radar') {
-        labelStations.style.display = "none";
+        document.getElementById("labelStations").style.display = "none";
         infoDisplay.style.display = "block";
-        
         let ymd = radarTime.toISOString().slice(0,10).replace(/-/g, "");
         let hms = radarTime.toTimeString().slice(0,8).replace(/:/g, "");
-        let path = `dades_radar_png/radar_${ymd}_${hms}.png`;
-        
         infoDisplay.textContent = `RADAR: ${radarTime.toLocaleDateString()} ${radarTime.toLocaleTimeString().slice(0,5)}`;
-        loadRadar(path);
-
-    } else if (viewMode === 'daily') {
-        labelStations.style.display = "flex";
-        infoDisplay.style.display = "none";
-        loadRadar(`acumulats_diaris/acumulat_${dates.daily}.png`);
-        loadStations(`acumulats_diaris/estacions_${dates.daily}.json`);
-
-    } else if (viewMode === 'weekly') {
-        labelStations.style.display = "flex";
-        infoDisplay.style.display = "block";
-        loadRadar(`acumulats_setmanals/setmanal_${dates.weeklyStart}_${dates.weeklyEnd}.png`, async (success) => {
-            if (!success) {
-                infoDisplay.textContent = `Setmana del ${dates.uiStart} al ${dates.uiEnd}`;
-                loadRadar(`acumulats_setmanals/setmanal_${dates.trialStart}_${dates.trialEnd}.png`);
-                loadStations(`acumulats_setmanals/estacions_${dates.trialStart}_${dates.trialEnd}.json`);
-            } else {
-                infoDisplay.textContent = `Setmana del ${dates.uiStartNat} al ${dates.uiEndNat}`;
-                loadStations(`acumulats_setmanals/estacions_${dates.weeklyStart}_${dates.weeklyEnd}.json`);
-            }
-        });
+        loadRadar(`dades_radar_png/radar_${ymd}_${hms}.png`);
+    } else {
+        document.getElementById("labelStations").style.display = "flex";
+        if (viewMode === 'daily') {
+            infoDisplay.style.display = "none";
+            loadRadar(`acumulats_diaris/acumulat_${dates.daily}.png`);
+            loadStations(`acumulats_diaris/estacions_${dates.daily}.json`);
+        } else {
+            infoDisplay.style.display = "block";
+            loadRadar(`acumulats_setmanals/setmanal_${dates.weeklyStart}_${dates.weeklyEnd}.png`, (success) => {
+                if (!success) {
+                    infoDisplay.textContent = `Setmana: ${dates.uiStart} - ${dates.uiEnd}`;
+                    loadRadar(`acumulats_setmanals/setmanal_${dates.trialStart}_${dates.trialEnd}.png`);
+                    loadStations(`acumulats_setmanals/estacions_${dates.trialStart}_${dates.trialEnd}.json`);
+                } else {
+                    infoDisplay.textContent = `Setmana: ${dates.uiStartNat} - ${dates.uiEndNat}`;
+                    loadStations(`acumulats_setmanals/estacions_${dates.weeklyStart}_${dates.weeklyEnd}.json`);
+                }
+            });
+        }
     }
 }
 
-async function loadRadar(path, callback) {
+function loadRadar(path, callback) {
     const img = new Image();
     img.onload = () => {
-        // Apliquem els bounds corregits que són comuns a les imatges diàries
-        overlayRadar = L.imageOverlay(path, radarBounds, { 
-            opacity: document.getElementById("opacitySlider").value 
-        }).addTo(map);
+        overlayRadar = L.imageOverlay(path, radarBounds, { opacity: document.getElementById("opacitySlider").value }).addTo(map);
         if(aspectLayer) overlayRadar.bringToFront();
         document.getElementById("statusMsg").textContent = "✔ Carregat";
         if(callback) callback(true);
@@ -271,7 +220,6 @@ async function loadStations(path) {
     if (!document.getElementById("checkStations").checked) return;
     try {
         const res = await fetch(path);
-        if (!res.ok) return;
         const data = await res.json();
         L.geoJSON(data, {
             pointToLayer: (feature, latlng) => L.marker(latlng, {
@@ -281,95 +229,72 @@ async function loadStations(path) {
     } catch (e) {}
 }
 
+function getDates(dateIn) {
+    let d = new Date(dateIn);
+    const fmt = (date) => date.toISOString().slice(0,10).replace(/-/g, "");
+    const fmtUI = (date) => `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+    let monday = new Date(d); monday.setDate(d.getDate() - (d.getDay() === 0 ? 6 : d.getDay() - 1));
+    let sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+    return {
+        daily: fmt(d), weeklyStart: fmt(monday), weeklyEnd: fmt(sunday),
+        trialStart: fmt(new Date(d.getTime() - 6*86400000)), trialEnd: fmt(d),
+        uiStart: fmtUI(new Date(d.getTime() - 6*86400000)), uiEnd: fmtUI(d),
+        uiStartNat: fmtUI(monday), uiEndNat: fmtUI(sunday)
+    };
+}
+
 // --- EVENTS ---
 document.getElementById("datePicker").onchange = function() {
     if (viewMode === 'radar') {
-        // Si canviem la data en mode radar, actualitzem radarTime mantenint HH:MM
         let newD = new Date(this.value);
-        radarTime.setFullYear(newD.getFullYear());
-        radarTime.setMonth(newD.getMonth());
-        radarTime.setDate(newD.getDate());
+        radarTime.setFullYear(newD.getFullYear(), newD.getMonth(), newD.getDate());
     }
     updateView();
 };
 
 document.getElementById("prevBtn").onclick = () => {
-    if (viewMode === 'radar') {
-        radarTime.setMinutes(radarTime.getMinutes() - 6);
-        document.getElementById("datePicker").value = radarTime.toISOString().slice(0, 10);
-    } else {
-        let d = new Date(datePicker.value);
-        d.setDate(d.getDate() - 1);
-        datePicker.value = d.toISOString().slice(0, 10);
-    }
-    updateView();
+    if (viewMode === 'radar') radarTime.setMinutes(radarTime.getMinutes() - 6);
+    else { let d = new Date(document.getElementById("datePicker").value); d.setDate(d.getDate()-1); document.getElementById("datePicker").value = d.toISOString().slice(0,10); }
+    syncDatePicker(); updateView();
 };
 
 document.getElementById("nextBtn").onclick = () => {
-    if (viewMode === 'radar') {
-        radarTime.setMinutes(radarTime.getMinutes() + 6);
-        document.getElementById("datePicker").value = radarTime.toISOString().slice(0, 10);
-    } else {
-        let d = new Date(datePicker.value);
-        d.setDate(d.getDate() + 1);
-        datePicker.value = d.toISOString().slice(0, 10);
-    }
-    updateView();
+    if (viewMode === 'radar') radarTime.setMinutes(radarTime.getMinutes() + 6);
+    else { let d = new Date(document.getElementById("datePicker").value); d.setDate(d.getDate()+1); document.getElementById("datePicker").value = d.toISOString().slice(0,10); }
+    syncDatePicker(); updateView();
 };
 
-document.getElementById("modeRadar").onclick = function() { 
-    viewMode = 'radar';
+function syncDatePicker() { if(viewMode === 'radar') document.getElementById("datePicker").value = radarTime.toISOString().slice(0,10); }
+
+document.getElementById("modeRadar").onclick = function() { changeMode('radar', this); };
+document.getElementById("modeDaily").onclick = function() { changeMode('daily', this); };
+document.getElementById("modeWeekly").onclick = function() { changeMode('weekly', this); };
+
+function changeMode(m, btn) {
+    viewMode = m;
     document.querySelectorAll('.header-tabs button').forEach(b => b.classList.remove('active'));
-    this.classList.add('active');
-    // Al entrar a radar, posem el calendari amb la data que toca
-    document.getElementById("datePicker").value = radarTime.toISOString().slice(0, 10);
+    btn.classList.add('active');
+    syncDatePicker();
     updateView();
-};
+}
 
-document.getElementById("modeDaily").onclick = function() { 
-    viewMode = 'daily';
-    document.querySelectorAll('.header-tabs button').forEach(b => b.classList.remove('active'));
-    this.classList.add('active');
-    updateView();
-};
+document.getElementById("btnToggleMenu").onclick = () => document.getElementById("mainControl").classList.toggle("minimized");
+document.getElementById("btnGPS").onclick = () => map.locate({setView: true, maxZoom: 14});
+map.on('locationfound', (e) => L.circleMarker(e.latlng, { radius: 8, className: 'user-location-dot', fillColor: '#007bff', fillOpacity: 1, color: 'white', weight: 2 }).addTo(map));
 
-document.getElementById("modeWeekly").onclick = function() { 
-    viewMode = 'weekly';
-    document.querySelectorAll('.header-tabs button').forEach(b => b.classList.remove('active'));
-    this.classList.add('active');
-    updateView();
-};
-
-document.getElementById("btnToggleMenu").onclick = function() {
-    document.getElementById("mainControl").classList.toggle("minimized");
-};
-
-document.getElementById("checkStations").onchange = updateView;
-document.getElementById("opacitySlider").oninput = function() { if (overlayRadar) overlayRadar.setOpacity(this.value); };
-
-// GPS i Orientació (Aspecte) igual que abans...
-document.getElementById("btnGPS").onclick = () => map.locate({setView: true, maxZoom: 16});
-map.on('locationfound', (e) => {
-    L.circleMarker(e.latlng, { radius: 8, className: 'user-location-dot', fillColor: '#007bff', fillOpacity: 1, color: 'white', weight: 2 }).addTo(map);
-});
-
-function toggleAspect() {
-    const btn = document.getElementById("btnAspect");
+document.getElementById("btnAspect").onclick = function() {
     if (!aspectLayer) {
-        btn.classList.add("active");
-        document.getElementById("aspectControl").style.display = "flex";
-        aspectLayer = L.tileLayer('https://albverfar123.github.io/meteo_prova/tiles_aspect/{z}/{x}/{y}.png', { opacity: 0.7 }).addTo(map);
-        if(overlayRadar) overlayRadar.bringToFront();
+        this.classList.add("active"); document.getElementById("aspectControl").style.display = "flex";
+        aspectLayer = L.tileLayer('https://albverfar123.github.io/meteo_prova/tiles_aspect/{z}/{x}/{y}.png', { opacity: 0.7, zIndex: 10 }).addTo(map);
     } else {
-        btn.classList.remove("active");
-        document.getElementById("aspectControl").style.display = "none";
+        this.classList.remove("active"); document.getElementById("aspectControl").style.display = "none";
         map.removeLayer(aspectLayer); aspectLayer = null;
     }
-}
-document.getElementById("btnAspect").onclick = toggleAspect;
-document.getElementById("aspectOpacity").oninput = function() { if (aspectLayer) aspectLayer.setOpacity(this.value); };
+};
+document.getElementById("opacitySlider").oninput = function() { if(overlayRadar) overlayRadar.setOpacity(this.value); };
+document.getElementById("aspectOpacity").oninput = function() { if(aspectLayer) aspectLayer.setOpacity(this.value); };
 
-// --- INICIAR ---
+// --- INIT ---
 let dInit = new Date(); dInit.setDate(dInit.getDate()-1);
 document.getElementById("datePicker").value = dInit.toISOString().slice(0,10);
 initMap();
