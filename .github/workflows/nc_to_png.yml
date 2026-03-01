@@ -24,7 +24,7 @@ jobs:
         pip install -r requirements.txt
 
     - name: Executar processament
-      run: python processar_radar.py
+      run: python nc_to_png.py
 
     - name: Pujar canvis al repositori
       run: |
